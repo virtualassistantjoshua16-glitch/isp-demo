@@ -70,11 +70,26 @@ export async function POST(req: Request) {
       }
     );
 
-    const stkData = await stkRes.json();
+    const rawText = await stkRes.text();
 
-    console.log("STK Response:", stkData);
+console.log("Raw STK Response Text:", rawText);
 
-    return NextResponse.json(stkData);
+// Safaricom sandbox sometimes returns empty body
+let stkData = {};
+if (rawText) {
+  try {
+    stkData = JSON.parse(rawText);
+  } catch {
+    stkData = { note: "Non-JSON response received", rawText };
+  }
+} else {
+  stkData = { note: "Empty response body from Safaricom (sandbox quirk)" };
+}
+
+console.log("Parsed STK Response:", stkData);
+
+return NextResponse.json(stkData);
+
   } catch (err: any) {
     console.error("STK ERROR:", err);
 
