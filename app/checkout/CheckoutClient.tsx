@@ -12,12 +12,23 @@ export default function CheckoutClient() {
   const [loading, setLoading] = useState(false);
 
   const handlePay = async () => {
-    setLoading(true);
+  setLoading(true);
 
-    await new Promise((r) => setTimeout(r, 2000));
+  const res = await fetch("/api/stk", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      phone,
+      amount: 1,
+    }),
+  });
 
-    router.push("/success");
-  };
+  const data = await res.json();
+  console.log("STK response:", data);
+
+  setLoading(false);
+  router.push("/success");
+};
 
   return (
     <div className="flex flex-col items-center justify-center">
