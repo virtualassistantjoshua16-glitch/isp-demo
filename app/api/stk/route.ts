@@ -4,34 +4,39 @@ export async function POST(req: Request) {
   try {
     const { phone, amount } = await req.json();
 
-    console.log("Incoming request:", phone, amount);
+    console.log("Received:", { phone, amount });
 
-    const auth = Buffer.from(
-      `${process.env.DARAJA_KEY}:${process.env.DARAJA_SECRET}`
-    ).toString("base64");
+    const key = process.env.DARAJA_KEY!;
+    const secret = process.env.DARAJA_SECRET!;
+
+    console.log("Key exists:", !!key);
+    console.log("Secret exists:", !!secret);
+
+    const auth = Buffer.from(`${key}:${secret}`).toString("base64");
 
     const tokenRes = await fetch(
       "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
       {
+        method: "GET",
         headers: {
           Authorization: `Basic ${auth}`,
         },
       }
     );
 
-    const tokenData = await tokenRes.json();
-    console.log("Token response:", tokenData);
+    const text = await tokenRes.text();
+
+    console.log("Raw Safaricom response:", text);
 
     return NextResponse.json({
-      success: true,
-      message: "Daraja token received",
-      tokenData,
+      status: tokenRes.status,
+      body: text,
     });
-  } catch (err) {
-    console.error("API ERROR:", err);
+  } catch (err: any) {
+    console.error("CRASH:", err);
 
     return NextResponse.json(
-      { success: false, error: "Something broke" },
+      { error: err.message || "Unknown crash" },
       { status: 500 }
     );
   }
