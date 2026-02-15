@@ -21,6 +21,7 @@ export async function POST(req: Request) {
     const passkey = process.env.PASSKEY!;
 
     // ✅ Generate OAuth token
+    console.log("Preparing OAuth request to Safaricom...");
     const auth = Buffer.from(`${key}:${secret}`).toString("base64");
 
     const tokenRes = await fetch(
@@ -30,6 +31,8 @@ export async function POST(req: Request) {
         headers: { Authorization: `Basic ${auth}` },
       }
     );
+
+    console.log("OAuth HTTP status:", tokenRes.status);
 
     const tokenText = await tokenRes.text();
     console.log("Raw Token Response:", tokenText);
