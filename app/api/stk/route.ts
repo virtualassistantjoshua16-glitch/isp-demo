@@ -2,7 +2,18 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    const { phone, amount } = await req.json();
+    let body;
+
+try {
+  body = await req.json();
+} catch {
+  body = {};
+}
+
+const { phone = "254708374149", amount = 1 } = body;
+
+console.log("Parsed body:", { phone, amount });
+
 
     console.log("Received:", { phone, amount });
 

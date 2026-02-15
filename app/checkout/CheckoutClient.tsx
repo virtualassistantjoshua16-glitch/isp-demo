@@ -11,39 +11,35 @@ export default function CheckoutClient() {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handlePay = async () => {
+const handlePay = async () => {
   try {
     setLoading(true);
+
+    const payload = {
+      phone: phone || "254708374149",
+      amount: 1,
+    };
+
+    console.log("Sending payload:", payload);
 
     const res = await fetch("/api/stk", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        phone,
-        amount: 1,
-      }),
+      body: JSON.stringify(payload),
     });
 
     const data = await res.json();
-    console.log("API RESPONSE:", data);
+    console.log("Server response:", data);
 
     router.push("/success");
   } catch (err) {
-    console.error("Payment error:", err);
-    alert("Something failed. Check logs.");
+    console.error("Checkout failed:", err);
+    alert("Request failed. Check console.");
   } finally {
     setLoading(false);
   }
-};
-
-
-  const data = await res.json();
-  console.log("STK response:", data);
-
-  setLoading(false);
-  router.push("/success");
 };
 
   return (
