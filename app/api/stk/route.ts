@@ -2,15 +2,16 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    // Safely read body
-    let body;
+    // ✅ Safely read request body
+    let body: any = {};
     try {
       body = await req.json();
     } catch {
-      body = {};
+      console.log("No JSON body received");
     }
 
-    const { phone = "254708374149", amount = 1 } = body;
+    const phone = body.phone || "254708374149";
+    const amount = body.amount || 1;
 
     console.log("Parsed body:", { phone, amount });
 
@@ -19,25 +20,30 @@ export async function POST(req: Request) {
     const shortcode = process.env.SHORTCODE!;
     const passkey = process.env.PASSKEY!;
 
-    // 🔐 Generate OAuth token
+    // ✅ Generate OAuth token
     const auth = Buffer.from(`${key}:${secret}`).toString("base64");
 
     const tokenRes = await fetch(
       "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
       {
         method: "GET",
-        headers: {
-          Authorization: `Basic ${auth}`,
-        },
+        headers: { Authorization: `Basic ${auth}` },
       }
     );
 
-    const tokenData = await tokenRes.json();
+    const tokenText = await tokenRes.text();
+    console.log("Raw Token Response:", tokenText);
+
+    if (!tokenText) {
+      throw new Error("Empty OAuth response from Safaricom");
+    }
+
+    const tokenData = JSON.parse(tokenText);
     const accessToken = tokenData.access_token;
 
-    console.log("Access Token received");
+    console.log("Access token acquired");
 
-    // ⏱️ Generate timestamp + password
+    // ✅ Generate timestamp + password
     const timestamp = new Date()
       .toISOString()
       .replace(/[-:TZ.]/g, "")
@@ -45,7 +51,7 @@ export async function POST(req: Request) {
 
     const password = Buffer.from(`${shortcode}${passkey}${timestamp}`).toString("base64");
 
-    // 📲 Send STK Push request
+    // ✅ Send STK Push
     const stkRes = await fetch(
       "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
       {
@@ -70,31 +76,28 @@ export async function POST(req: Request) {
       }
     );
 
-    const rawText = await stkRes.text();
+    const stkText = await stkRes.text();
+    console.log("Raw STK Response:", stkText);
 
-console.log("Raw STK Response Text:", rawText);
+    let stkData: any = {};
+    if (stkText) {
+      try {
+        stkData = JSON.parse(stkText);
+      } catch {
+        stkData = { note: "Non-JSON response", raw: stkText };
+      }
+    } else {
+      stkData = { note: "Empty STK response (sandbox behavior)" };
+    }
 
-// Safaricom sandbox sometimes returns empty body
-let stkData = {};
-if (rawText) {
-  try {
-    stkData = JSON.parse(rawText);
-  } catch {
-    stkData = { note: "Non-JSON response received", rawText };
-  }
-} else {
-  stkData = { note: "Empty response body from Safaricom (sandbox quirk)" };
-}
+    console.log("Final Parsed STK Data:", stkData);
 
-console.log("Parsed STK Response:", stkData);
-
-return NextResponse.json(stkData);
-
+    return NextResponse.json(stkData);
   } catch (err: any) {
-    console.error("STK ERROR:", err);
+    console.error("FINAL ERROR:", err.message);
 
     return NextResponse.json(
-      { error: err.message || "STK failed" },
+      { error: err.message },
       { status: 500 }
     );
   }
