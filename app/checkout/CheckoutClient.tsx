@@ -12,16 +12,32 @@ export default function CheckoutClient() {
   const [loading, setLoading] = useState(false);
 
   const handlePay = async () => {
-  setLoading(true);
+  try {
+    setLoading(true);
 
-  const res = await fetch("/api/stk", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      phone,
-      amount: 1,
-    }),
-  });
+    const res = await fetch("/api/stk", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        phone,
+        amount: 1,
+      }),
+    });
+
+    const data = await res.json();
+    console.log("API RESPONSE:", data);
+
+    router.push("/success");
+  } catch (err) {
+    console.error("Payment error:", err);
+    alert("Something failed. Check logs.");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const data = await res.json();
   console.log("STK response:", data);
