@@ -2,25 +2,24 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
+    // Safely read body
     let body;
+    try {
+      body = await req.json();
+    } catch {
+      body = {};
+    }
 
-try {
-  body = await req.json();
-} catch {
-  body = {};
-}
-const { phone = "254708374149", amount = 1 } = body;
+    const { phone = "254708374149", amount = 1 } = body;
 
-console.log("Parsed body:", { phone, amount });
-
-    console.log("Received:", { phone, amount });
+    console.log("Parsed body:", { phone, amount });
 
     const key = process.env.DARAJA_KEY!;
     const secret = process.env.DARAJA_SECRET!;
+    const shortcode = process.env.SHORTCODE!;
+    const passkey = process.env.PASSKEY!;
 
-    console.log("Key exists:", !!key);
-    console.log("Secret exists:", !!secret);
-
+    // 🔐 Generate OAuth token
     const auth = Buffer.from(`${key}:${secret}`).toString("base64");
 
     const tokenRes = await fetch(
@@ -33,60 +32,54 @@ console.log("Parsed body:", { phone, amount });
       }
     );
 
-    const text = await tokenRes.text();
+    const tokenData = await tokenRes.json();
+    const accessToken = tokenData.access_token;
 
-    console.log("Raw Safaricom response:", text);
+    console.log("Access Token received");
 
-    return NextResponse.json({
-      status: tokenRes.status,
-      body: text,
-    });
-    const tokenJson = JSON.parse(text);
-const accessToken = tokenJson.access_token;
+    // ⏱️ Generate timestamp + password
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[-:TZ.]/g, "")
+      .slice(0, 14);
 
-const timestamp = new Date()
-  .toISOString()
-  .replace(/[-:TZ.]/g, "")
-  .slice(0, 14);
+    const password = Buffer.from(`${shortcode}${passkey}${timestamp}`).toString("base64");
 
-const password = Buffer.from(
-  `${process.env.SHORTCODE}${process.env.PASSKEY}${timestamp}`
-).toString("base64");
+    // 📲 Send STK Push request
+    const stkRes = await fetch(
+      "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          BusinessShortCode: shortcode,
+          Password: password,
+          Timestamp: timestamp,
+          TransactionType: "CustomerPayBillOnline",
+          Amount: amount,
+          PartyA: phone,
+          PartyB: shortcode,
+          PhoneNumber: phone,
+          CallBackURL: "https://example.com/callback",
+          AccountReference: "ISP Demo",
+          TransactionDesc: "Test Payment",
+        }),
+      }
+    );
 
-const stkRes = await fetch(
-  "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
-  {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      BusinessShortCode: process.env.SHORTCODE,
-      Password: password,
-      Timestamp: timestamp,
-      TransactionType: "CustomerPayBillOnline",
-      Amount: amount,
-      PartyA: phone,
-      PartyB: process.env.SHORTCODE,
-      PhoneNumber: phone,
-      CallBackURL: "https://example.com/callback",
-      AccountReference: "ISP Demo",
-      TransactionDesc: "Test Payment",
-    }),
-  }
-);
+    const stkData = await stkRes.json();
 
-const stkData = await stkRes.text();
-console.log("STK Response:", stkData);
+    console.log("STK Response:", stkData);
 
-return NextResponse.json({ stkData });
-
+    return NextResponse.json(stkData);
   } catch (err: any) {
-    console.error("CRASH:", err);
+    console.error("STK ERROR:", err);
 
     return NextResponse.json(
-      { error: err.message || "Unknown crash" },
+      { error: err.message || "STK failed" },
       { status: 500 }
     );
   }
