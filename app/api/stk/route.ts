@@ -9,11 +9,9 @@ try {
 } catch {
   body = {};
 }
-
 const { phone = "254708374149", amount = 1 } = body;
 
 console.log("Parsed body:", { phone, amount });
-
 
     console.log("Received:", { phone, amount });
 
@@ -43,6 +41,47 @@ console.log("Parsed body:", { phone, amount });
       status: tokenRes.status,
       body: text,
     });
+    const tokenJson = JSON.parse(text);
+const accessToken = tokenJson.access_token;
+
+const timestamp = new Date()
+  .toISOString()
+  .replace(/[-:TZ.]/g, "")
+  .slice(0, 14);
+
+const password = Buffer.from(
+  `${process.env.SHORTCODE}${process.env.PASSKEY}${timestamp}`
+).toString("base64");
+
+const stkRes = await fetch(
+  "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
+  {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      BusinessShortCode: process.env.SHORTCODE,
+      Password: password,
+      Timestamp: timestamp,
+      TransactionType: "CustomerPayBillOnline",
+      Amount: amount,
+      PartyA: phone,
+      PartyB: process.env.SHORTCODE,
+      PhoneNumber: phone,
+      CallBackURL: "https://example.com/callback",
+      AccountReference: "ISP Demo",
+      TransactionDesc: "Test Payment",
+    }),
+  }
+);
+
+const stkData = await stkRes.text();
+console.log("STK Response:", stkData);
+
+return NextResponse.json({ stkData });
+
   } catch (err: any) {
     console.error("CRASH:", err);
 
