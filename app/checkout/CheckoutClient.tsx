@@ -43,25 +43,28 @@ const handlePay = async () => {
 };
 
   return (
-    <div className="flex flex-col items-center justify-center">
+  <main className="min-h-screen flex items-center justify-center bg-gray-100">
+    <div className="bg-white shadow-lg rounded-xl p-8 w-80 text-center">
       <h1 className="text-2xl font-bold mb-4">
-        Package {pkg} Selected
+        Enter M-Pesa Number
       </h1>
 
       <input
         type="text"
         placeholder="2547XXXXXXXX"
-        className="border p-3 rounded w-72"
+        className="border p-3 rounded w-full"
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
       />
 
       <button
         onClick={handlePay}
-        className="mt-4 bg-green-600 text-white px-6 py-3 rounded"
+        className="mt-4 bg-green-600 text-white px-6 py-3 rounded w-full"
       >
         {loading ? "Processing..." : "Pay Now"}
       </button>
     </div>
-  );
+  </main>
+);
+
 }
