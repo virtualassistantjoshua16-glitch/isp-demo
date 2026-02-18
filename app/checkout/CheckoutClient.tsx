@@ -11,6 +11,17 @@ export default function CheckoutClient() {
 
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
+  const existing = JSON.parse(localStorage.getItem("tx") || "[]");
+
+existing.push({
+  phone,
+  amount: 1,
+  status: "SUCCESS",
+  time: Date.now(),
+});
+
+localStorage.setItem("tx", JSON.stringify(existing));
+
 
 const handlePay = async () => {
   try {

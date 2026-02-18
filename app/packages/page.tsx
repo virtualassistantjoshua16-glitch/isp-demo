@@ -6,12 +6,21 @@ import packages from "@/data/packages.json";
 export default function Packages() {
   const router = useRouter();
 
+  const stored =
+    typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("packages") || "null")
+      : null;
+
+  const source = stored || packages;
+
   return (
-    <main className="min-h-screen p-10 bg-gray-100">
+    <main
+      className="min-h-screen bg-cover bg-center bg-no-repeat flex flex-col p-10"
+      style={{ backgroundImage: "url('/images/packages-bg.jpg')" }}>
       <h1 className="text-3xl font-bold mb-8">Choose Your Package</h1>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {packages.map((pkg) => (
+      <div className="backdrop-blur-sm bg-white/70 p-6 rounded-xl">
+        {source.map((pkg) => (
           <div
             key={pkg.id}
             className="bg-white shadow-md hover:shadow-xl transition p-6 rounded-xl border"
