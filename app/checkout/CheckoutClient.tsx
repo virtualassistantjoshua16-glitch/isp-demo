@@ -2,6 +2,7 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { useState } from "react";
+import { ClipLoader } from "react-spinners";
 
 export default function CheckoutClient() {
   const params = useSearchParams();
@@ -32,8 +33,13 @@ const handlePay = async () => {
 
     const data = await res.json();
     console.log("Server response:", data);
+    router.push("/status?status=pending");
 
-    router.push("/success");
+    setTimeout(() => {
+    router.push("/status?status=success");
+    }, 2500);
+
+
   } catch (err) {
     console.error("Checkout failed:", err);
     alert("Request failed. Check console.");
@@ -66,5 +72,6 @@ const handlePay = async () => {
     </div>
   </main>
 );
+
 
 }
