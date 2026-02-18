@@ -1,9 +1,12 @@
 "use client";
+
+export const dynamic = "force-dynamic";
+
 import { useSearchParams } from "next/navigation";
 
 export default function StatusPage() {
   const params = useSearchParams();
-  const status = params.get("status");
+  const status = (params.get("status") || "pending") as "success" | "pending" | "failed";
 
   const config = {
     success: {
@@ -20,7 +23,7 @@ export default function StatusPage() {
     },
   };
 
-  const state = config[status as keyof typeof config] || config.pending;
+  const state = config[status];
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-gray-100">
