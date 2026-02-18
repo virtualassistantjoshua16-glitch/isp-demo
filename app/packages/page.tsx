@@ -17,6 +17,7 @@ export default function Packages() {
     <main
       className="min-h-screen bg-cover bg-center bg-no-repeat flex flex-col p-10"
       style={{ backgroundImage: "url('/images/packages-bg.jpg')" }}>
+      <div className="bg-white/75 backdrop-blur-md rounded-2xl p-8 shadow-xl">
       <h1 className="text-3xl font-bold mb-8">Choose Your Package</h1>
 
       <div className="backdrop-blur-sm bg-white/70 p-6 rounded-xl">
@@ -39,6 +40,7 @@ export default function Packages() {
             </button>
           </div>
         ))}
+      </div>
       </div>
     </main>
   );
