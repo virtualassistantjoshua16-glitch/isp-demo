@@ -2,6 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import packages from "@/data/packages.json";
+type Package = {
+  id: string;
+  name: string;
+  price: number;
+  speed: string;
+};
+
 
 export default function Packages() {
   const router = useRouter();
@@ -11,7 +18,8 @@ export default function Packages() {
       ? JSON.parse(localStorage.getItem("packages") || "null")
       : null;
 
-  const source = stored || packages;
+  const source: Package[] = stored || packages;
+
 
   return (
     <main
@@ -21,7 +29,7 @@ export default function Packages() {
       <h1 className="text-3xl font-bold mb-8">Choose Your Package</h1>
 
       <div className="backdrop-blur-sm bg-white/70 p-6 rounded-xl">
-        {source.map((pkg) => (
+        {source.map((pkg: Package) => (
           <div
             key={pkg.id}
             className="bg-white shadow-md hover:shadow-xl transition p-6 rounded-xl border"
