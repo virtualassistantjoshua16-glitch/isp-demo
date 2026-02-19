@@ -1,6 +1,6 @@
 export const runtime = "nodejs";
 export const preferredRegion = "fra1";
-
+import { supabase } from "@/lib/supabase";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -15,6 +15,13 @@ export async function POST(req: Request) {
 
     const phone = body.phone || "254708374149";
     const amount = body.amount || 1;
+    await supabase.from("transactions").insert({
+  phone,
+  amount,
+  package: "Selected Package",
+  status: "pending",
+});
+
 
     console.log("Parsed body:", { phone, amount });
 
