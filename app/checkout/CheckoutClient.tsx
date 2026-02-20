@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ClipLoader } from "react-spinners";
 
 export default function CheckoutClient() {
@@ -11,17 +11,29 @@ export default function CheckoutClient() {
 
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
-  const existing = JSON.parse(localStorage.getItem("tx") || "[]");
+  const [existing, setExisting] = useState<any[]>([]);
 
-existing.push({
-  phone,
-  amount: 1,
-  status: "SUCCESS",
-  time: Date.now(),
-});
+useEffect(() => {
+  const stored = localStorage.getItem("tx");
+  if (stored) {
+    setExisting(JSON.parse(stored));
+  }
+}, []);
 
-localStorage.setItem("tx", JSON.stringify(existing));
+const saveTx = (phone: string) => {
+  const updated = [
+    ...existing,
+    {
+      phone,
+      amount: 1,
+      status: "PENDING",
+      time: Date.now(),
+    },
+  ];
 
+  setExisting(updated);
+  localStorage.setItem("tx", JSON.stringify(updated));
+};
 
 const handlePay = async () => {
   try {
@@ -44,12 +56,15 @@ const handlePay = async () => {
 
     const data = await res.json();
     console.log("Server response:", data);
+
+    // ✅ Save ONLY after request accepted
+    saveTx(payload.phone);
+
     router.push("/status?status=pending");
 
     setTimeout(() => {
-    router.push("/status?status=success");
+      router.push("/status?status=success");
     }, 2500);
-
 
   } catch (err) {
     console.error("Checkout failed:", err);
@@ -58,6 +73,7 @@ const handlePay = async () => {
     setLoading(false);
   }
 };
+
 
   return (
   <main className="min-h-screen flex items-center justify-center bg-gray-100">

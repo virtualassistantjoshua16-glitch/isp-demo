@@ -2,8 +2,26 @@ export const runtime = "nodejs";
 export const preferredRegion = "fra1";
 import { supabase } from "@/lib/supabase";
 import { NextResponse } from "next/server";
+console.log("STK API HIT");
+
 
 export async function POST(req: Request) {
+  const body = await req.json();
+
+  const { phone, amount } = body;
+
+  const { error } = await supabase.from("transactions").insert([
+    {
+      phone,
+      amount,
+      status: "PENDING",
+    },
+  ]);
+
+  if (error) {
+    console.error("Supabase insert error:", error);
+    return NextResponse.json({ ok: false });
+  }
   try {
     // ✅ Safely read request body
     let body: any = {};
