@@ -100,7 +100,7 @@ export async function POST(req: Request) {
           PartyA: phone,
           PartyB: shortcode,
           PhoneNumber: phone,
-          CallBackURL: "https://example.com/callback",
+          CallBackURL: "https://isp-demo-od9a.vercel.app/api/callback",
           AccountReference: "ISP Demo",
           TransactionDesc: "Test Payment",
         }),
@@ -110,16 +110,23 @@ export async function POST(req: Request) {
     const stkText = await stkRes.text();
     console.log("Raw STK Response:", stkText);
 
+
     let stkData: any = {};
-    if (stkText) {
-      try {
-        stkData = JSON.parse(stkText);
-      } catch {
-        stkData = { note: "Non-JSON response", raw: stkText };
-      }
-    } else {
-      stkData = { note: "Empty STK response (sandbox behavior)" };
+
+    try {
+      stkData = stkText ? JSON.parse(stkText) : {};
+    } catch (e){
+      console.warn("STK returned non-JSON (sandbox quirk)");
+      stkData = {note: "Empty STK response (sandbox behavior)"
+      };
     }
+
+    await supabase.from("transactions").insert({
+      phone: phone,
+      amount: amount,
+      checkout_id: stkData.checkoutRequestID || null,
+      status: "PENDING",
+    })
 
     console.log("Final Parsed STK Data:", stkData);
 
