@@ -1,141 +1,79 @@
-export const runtime = "nodejs";
-export const preferredRegion = "fra1";
-import { supabase } from "@/lib/supabase";
 import { NextResponse } from "next/server";
-console.log("STK API HIT");
+import { createClient } from "@supabase/supabase-js";
 
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in env");
+}
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function POST(req: Request) {
-  const body = await req.json();
-
-  const { phone, amount } = body;
-
-  const { error } = await supabase.from("transactions").insert([
-    {
-      phone,
-      amount,
-      status: "PENDING",
-    },
-  ]);
-
-  if (error) {
-    console.error("Supabase insert error:", error);
-    return NextResponse.json({ ok: false });
-  }
   try {
-    // ✅ Safely read request body
-    let body: any = {};
+    const body = await req.json(); // { phone, amount, packageName }
+
+    // 1) Call VPS
+    const response = await fetch("http://91.99.193.190:4000/api/stk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    // Read VPS response ONCE
+    const raw = await response.text();
+
+    // Parse JSON if possible
+    let data: any;
     try {
-      body = await req.json();
+      data = JSON.parse(raw);
     } catch {
-      console.log("No JSON body received");
+      return NextResponse.json(
+        { ok: false, error: "VPS returned non-JSON", raw: raw.slice(0, 300) },
+        { status: 502 }
+      );
     }
 
-    const phone = body.phone || "254708374149";
-    const amount = body.amount || 1;
-    await supabase.from("transactions").insert({
-  phone,
-  amount,
-  package: "Selected Package",
-  status: "pending",
-});
-
-
-    console.log("Parsed body:", { phone, amount });
-
-    const key = process.env.DARAJA_KEY!;
-    const secret = process.env.DARAJA_SECRET!;
-    const shortcode = process.env.SHORTCODE!;
-    const passkey = process.env.PASSKEY!;
-
-    // ✅ Generate OAuth token
-    console.log("Preparing OAuth request to Safaricom...");
-    const auth = Buffer.from(`${key}:${secret}`).toString("base64");
-
-    const tokenRes = await fetch(
-      "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
-      {
-        method: "GET",
-        headers: { Authorization: `Basic ${auth}` },
-      }
-    );
-
-    console.log("OAuth HTTP status:", tokenRes.status);
-
-    const tokenText = await tokenRes.text();
-    console.log("Raw Token Response:", tokenText);
-
-    if (!tokenText) {
-      throw new Error("Empty OAuth response from Safaricom");
+    // If VPS failed, bubble up the VPS message
+    if (!response.ok || !data?.CheckoutRequestID) {
+      return NextResponse.json(
+        { ok: false, error: "VPS STK failed", vpsStatus: response.status, vps: data },
+        { status: 502 }
+      );
     }
 
-    const tokenData = JSON.parse(tokenText);
-    const accessToken = tokenData.access_token;
+    const checkoutId = data.CheckoutRequestID;
+    const merchantRequestId = data.MerchantRequestID;
 
-    console.log("Access token acquired");
-
-    // ✅ Generate timestamp + password
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/[-:TZ.]/g, "")
-      .slice(0, 14);
-
-    const password = Buffer.from(`${shortcode}${passkey}${timestamp}`).toString("base64");
-
-    // ✅ Send STK Push
-    const stkRes = await fetch(
-      "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          BusinessShortCode: shortcode,
-          Password: password,
-          Timestamp: timestamp,
-          TransactionType: "CustomerPayBillOnline",
-          Amount: amount,
-          PartyA: phone,
-          PartyB: shortcode,
-          PhoneNumber: phone,
-          CallBackURL: "https://isp-demo-od9a.vercel.app/api/callback",
-          AccountReference: "ISP Demo",
-          TransactionDesc: "Test Payment",
-        }),
-      }
-    );
-
-    const stkText = await stkRes.text();
-    console.log("Raw STK Response:", stkText);
-
-
-    let stkData: any = {};
-
-    try {
-      stkData = stkText ? JSON.parse(stkText) : {};
-    } catch (e){
-      console.warn("STK returned non-JSON (sandbox quirk)");
-      stkData = {note: "Empty STK response (sandbox behavior)"
-      };
-    }
-
-    await supabase.from("transactions").insert({
-      phone: phone,
-      amount: amount,
-      checkout_id: stkData.checkoutRequestID || null,
+    // 2) Insert row in Supabase
+    const { error: insErr } = await supabase.from("transactions").insert({
+      phone: body.phone,
+      amount: body.amount,
+      package_name: body.packageName,
+      checkout_id: checkoutId,
+      mpesa_request_id: merchantRequestId,
       status: "PENDING",
-    })
+    });
 
-    console.log("Final Parsed STK Data:", stkData);
+    if (insErr) {
+      return NextResponse.json(
+        { ok: false, error: "Supabase insert failed", details: insErr.message },
+        { status: 500 }
+      );
+    }
 
-    return NextResponse.json(stkData);
-  } catch (err: any) {
-    console.error("FINAL ERROR:", err.message);
+    // 3) Return checkoutId to frontend so polling works
+    return NextResponse.json({
+      ok: true,
+      checkoutId,
+      merchantRequestId,
+      message: "STK initiated + row saved",
+    });
 
+  } catch (error: any) {
     return NextResponse.json(
-      { error: err.message },
+      { ok: false, error: error?.message || "Unknown error" },
       { status: 500 }
     );
   }
