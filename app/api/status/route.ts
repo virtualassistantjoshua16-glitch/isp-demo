@@ -16,6 +16,8 @@ export async function GET(req: Request) {
     .select("*")
     .eq("checkout_id", checkoutId)   // ← MUST MATCH DB COLUMN
     .maybeSingle();
+  
+  console.log("STATUS checkoutId raw", JSON.stringify(checkoutId));
 
   if (!data) {
     return NextResponse.json({ status: "PENDING", note:
